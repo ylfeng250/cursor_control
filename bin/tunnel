@@ -1,0 +1,24 @@
+#!/bin/bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+TOKEN_FILE="$ROOT/data/cloudflared-token"
+if [[ ! -s "$TOKEN_FILE" ]]; then
+  echo "还没有 Cloudflare Tunnel 令牌" >&2
+  exit 1
+fi
+CF=""
+if [[ -n "${CLOUDFLARED_BIN:-}" && -x "${CLOUDFLARED_BIN}" ]]; then
+  CF="${CLOUDFLARED_BIN}"
+else
+  for candidate in /opt/homebrew/bin/cloudflared /usr/local/bin/cloudflared; do
+    if [[ -x "$candidate" ]]; then
+      CF="$candidate"
+      break
+    fi
+  done
+fi
+if [[ -z "$CF" ]]; then
+  echo "找不到 cloudflared" >&2
+  exit 1
+fi
+exec "$CF" tunnel --no-autoupdate --metrics 127.0.0.1:20246 run --token-file "$TOKEN_FILE"

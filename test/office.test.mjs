@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createPassphrase, tokensMatch } from "../lib/access.mjs";
-import { isTailnetAddress, phoneUrls } from "../lib/network.mjs";
+import { isTailnetAddress, normalizeTunnelUrl, phoneUrls } from "../lib/network.mjs";
 import { reconcileTask } from "../lib/task-store.mjs";
 
 test("phone urls separate home wifi from tailscale", () => {
@@ -19,6 +19,13 @@ test("phone urls separate home wifi from tailscale", () => {
   assert.equal(urls.localName, "http://liuqi.local:8787");
   assert.equal(isTailnetAddress("100.64.0.1"), true);
   assert.equal(isTailnetAddress("192.168.1.2"), false);
+});
+
+test("a tunnel url is a bare https hostname", () => {
+  assert.equal(normalizeTunnelUrl("https://cursor.hopev5.com"), "https://cursor.hopev5.com");
+  assert.equal(normalizeTunnelUrl("https://cursor.hopev5.com/"), "https://cursor.hopev5.com");
+  assert.equal(normalizeTunnelUrl("http://cursor.hopev5.com"), null);
+  assert.equal(normalizeTunnelUrl("https://cursor.hopev5.com/office"), null);
 });
 
 test("a passphrase is readable and comparable", () => {

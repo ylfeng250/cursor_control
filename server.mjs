@@ -14,7 +14,7 @@ import {
   parseAuth,
   parseStreamLine,
 } from "./lib/agent-cli.mjs";
-import { phoneUrls } from "./lib/network.mjs";
+import { phoneUrls, readTunnelUrl } from "./lib/network.mjs";
 import { emptyTask, readTask, reconcileTask, writeTask } from "./lib/task-store.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -58,6 +58,7 @@ export function start({
     host,
     agentBin,
     token,
+    dataDir,
     stateFile,
     task,
     child: null,
@@ -134,7 +135,7 @@ async function handle(req, res, ctx) {
 }
 
 async function login(req, res, ctx) {
-  const ip = req.socket.remoteAddress || "unknown";
+  const ip = clientKey(req);
   const limited = ctx.loginFails.get(ip);
   if (limited && limited.until > Date.now()) fail(429, "试得太勤，等半分钟再试");
   const body = await readJson(req);
@@ -148,7 +149,7 @@ async function login(req, res, ctx) {
     fail(401, "口令不对");
   }
   ctx.loginFails.delete(ip);
-  res.setHeader("Set-Cookie", cookieHeader(COOKIE, ctx.token));
+  res.setHeader("Set-Cookie", cookieHeader(COOKIE, ctx.token, requestIsHttps(req)));
   sendJson(res, 200, { ok: true });
 }
 
@@ -297,6 +298,7 @@ function currentUrls(ctx) {
   return {
     ...urls,
     tailscaleInstalled: ctx.tailscale.installed,
+    tunnel: readTunnelUrl(path.join(ctx.dataDir, "tunnel-url")),
   };
 }
 
@@ -429,9 +431,42 @@ function fail(status, message) {
   throw Object.assign(new Error(message), { status });
 }
 
+function isLoopback(address) {
+  const value = String(address || "");
+  return value === "127.0.0.1" || value === "::1" || value === "::ffff:127.0.0.1";
+}
+
+function viaCloudflare(req) {
+  return Boolean(req.headers["cf-connecting-ip"] || req.headers["cf-ray"] || req.headers["cf-visitor"]);
+}
+
+function requestHost(req) {
+  const raw = String(req.headers.host || "").toLowerCase();
+  if (raw.startsWith("[")) {
+    const end = raw.indexOf("]");
+    return end === -1 ? raw : raw.slice(0, end + 1);
+  }
+  return raw.replace(/:\d+$/, "");
+}
+
 function isLocal(req) {
-  const address = req.socket.remoteAddress || "";
-  return address === "127.0.0.1" || address === "::1" || address.endsWith("127.0.0.1");
+  if (!isLoopback(req.socket.remoteAddress) || viaCloudflare(req)) return false;
+  const host = requestHost(req);
+  return host === "127.0.0.1" || host === "localhost" || host === "[::1]";
+}
+
+function clientKey(req) {
+  if (isLoopback(req.socket.remoteAddress)) {
+    const forwarded = String(req.headers["cf-connecting-ip"] || "").trim();
+    if (forwarded) return forwarded;
+  }
+  return req.socket.remoteAddress || "unknown";
+}
+
+function requestIsHttps(req) {
+  if (!isLoopback(req.socket.remoteAddress) || !viaCloudflare(req)) return false;
+  const proto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim().toLowerCase();
+  return proto === "https";
 }
 
 function isIpv4(value) {
@@ -457,6 +492,8 @@ if (isMain) {
     console.log(`Mac 打开 http://127.0.0.1:${server.port} 查看口令`);
     for (const url of urls.lan) console.log(`家里 ${url}`);
     if (urls.localName) console.log(`家里备用 ${urls.localName}`);
-    console.log("不要把 8787 转到公网。出门用 Tailscale。");
+    const tunnel = readTunnelUrl(path.join(root, "data/tunnel-url"));
+    if (tunnel) console.log(`出门 Cloudflare ${tunnel}`);
+    console.log("出门也可以用 Tailscale。不要把 8787 转到公网。");
   });
 }

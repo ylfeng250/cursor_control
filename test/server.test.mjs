@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -18,6 +19,37 @@ test("local setup shows the passphrase and the phone must log in", async () => {
     const cookie = await login(server);
     const state = await fetch(`${server.url}/api/state`, { headers: { cookie } }).then((response) => response.json());
     assert.equal(state.phase, "idle");
+  } finally {
+    await server.close();
+  }
+});
+
+test("cloudflare requests do not receive the passphrase", async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "cursor-control-"));
+  fs.writeFileSync(path.join(dataDir, "tunnel-url"), "https://cursor.hopev5.com\n");
+  const server = await start({ port: 0, host: "127.0.0.1", accessToken: token, dataDir });
+  try {
+    const setup = await fetch(`${server.url}/api/setup`).then((response) => response.json());
+    assert.equal(setup.urls.tunnel, "https://cursor.hopev5.com");
+    const blocked = await rawRequest(`${server.url}/api/setup`, {
+      "cf-connecting-ip": "203.0.113.8",
+      "cf-ray": "test",
+    });
+    assert.equal(blocked.status, 403);
+    const foreignHost = await rawRequest(`${server.url}/api/setup`, { host: "cursor.hopev5.com" });
+    assert.equal(foreignHost.status, 403);
+    const logged = await rawRequest(
+      `${server.url}/api/login`,
+      {
+        "content-type": "application/json",
+        "cf-connecting-ip": "203.0.113.8",
+        "cf-ray": "test",
+        "x-forwarded-proto": "https",
+      },
+      JSON.stringify({ password: token }),
+    );
+    assert.equal(logged.status, 200);
+    assert.match(String(logged.headers["set-cookie"]), /Secure/);
   } finally {
     await server.close();
   }
@@ -127,6 +159,28 @@ if (prompt === "hold") {
   );
   fs.chmodSync(fakeAgent, 0o755);
   return fakeAgent;
+}
+
+function rawRequest(url, headers, body) {
+  const target = new URL(url);
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        hostname: target.hostname,
+        port: target.port,
+        path: `${target.pathname}${target.search}`,
+        method: body ? "POST" : "GET",
+        headers,
+      },
+      (response) => {
+        response.resume();
+        response.on("end", () => resolve({ status: response.statusCode, headers: response.headers }));
+      },
+    );
+    req.on("error", reject);
+    if (body) req.end(body);
+    else req.end();
+  });
 }
 
 async function login(server) {

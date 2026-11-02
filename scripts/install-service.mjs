@@ -50,3 +50,8 @@ execFileSync("launchctl", ["bootstrap", domain, plistPath], { stdio: "inherit" }
 execFileSync("launchctl", ["enable", target], { stdio: "inherit" });
 execFileSync("launchctl", ["kickstart", "-k", target], { stdio: "inherit" });
 console.log(plistPath);
+
+const tokenFile = path.join(root, "data/cloudflared-token");
+if (fs.existsSync(tokenFile) && fs.statSync(tokenFile).size > 0) {
+  execFileSync(process.execPath, [path.join(root, "scripts/install-tunnel.mjs")], { stdio: "inherit" });
+}

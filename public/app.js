@@ -169,7 +169,8 @@ function showAddresses(info) {
   const rows = [
     ...(urls.lan || []).map((url) => ["家里", url]),
     ...(urls.localName ? [["家里备用", urls.localName]] : []),
-    ...(urls.tailscale || []).map((url) => ["出门", url]),
+    ...(urls.tunnel ? [["出门", urls.tunnel]] : []),
+    ...(urls.tailscale || []).map((url) => ["出门备用", url]),
   ];
   addressList.replaceChildren();
   for (const [where, url] of rows) {
@@ -183,10 +184,21 @@ function showAddresses(info) {
     addressList.append(item);
   }
   passphrase.textContent = info.password || "";
-  awayHint.textContent = urls.tailscale?.length
-    ? "出门用上面的 Tailscale 地址。不要把 8787 转到公网。"
-    : "出门：在 Mac 和 Android 安装 Tailscale，登录同一个账号。登录后这里会出现出门地址。不要把 8787 转到公网。";
+  awayHint.textContent = awayHintText(urls);
   addresses.hidden = false;
+}
+
+function awayHintText(urls) {
+  if (urls.tunnel && urls.tailscale?.length) {
+    return "出门先打开 Cloudflare 地址。同一账号的 Tailscale 地址也可以用。不要把 8787 转到公网。";
+  }
+  if (urls.tunnel) {
+    return "出门打开上面的 Cloudflare 地址。手机先完成邮箱验证，再输入访问口令。不要把 8787 转到公网。";
+  }
+  if (urls.tailscale?.length) {
+    return "出门用上面的 Tailscale 地址。不要把 8787 转到公网。";
+  }
+  return "出门可以走 Cloudflare 隧道，也可以在 Mac 和 Android 安装 Tailscale 并登录同一个账号。不要把 8787 转到公网。";
 }
 
 async function startRun() {
