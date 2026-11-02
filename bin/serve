@@ -1,0 +1,21 @@
+#!/bin/bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+NODE=""
+if [[ -n "${NODE_BIN:-}" && -x "${NODE_BIN}" ]]; then
+  NODE="${NODE_BIN}"
+else
+  for candidate in "$HOME"/.nvm/versions/node/*/bin/node /opt/homebrew/bin/node /usr/local/bin/node; do
+    if [[ -x "$candidate" ]]; then
+      NODE="$candidate"
+    fi
+  done
+fi
+if [[ -z "$NODE" ]]; then
+  echo "找不到 node" >&2
+  exit 1
+fi
+export PATH="$(dirname "$NODE"):$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:${PATH:-}"
+cd "$ROOT"
+mkdir -p "$ROOT/data"
+exec /usr/bin/caffeinate -is "$NODE" "$ROOT/server.mjs"

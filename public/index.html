@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+    <title>Cursor Agent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;600;700&family=Spline+Sans+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div>
+        <p class="eyebrow">手机办公</p>
+        <h1>Cursor Agent</h1>
+      </div>
+      <p id="phase" class="phase">空闲</p>
+    </header>
+
+    <section id="addresses" class="addresses" hidden>
+      <h2>在手机浏览器打开</h2>
+      <ul id="address-list"></ul>
+      <p class="pass-label">访问口令</p>
+      <p id="passphrase" class="passphrase"></p>
+      <p id="away-hint" class="hint"></p>
+    </section>
+
+    <aside id="banner" class="banner" hidden>
+      <p id="banner-text"></p>
+      <button type="button" id="copy-login" class="ghost">复制命令</button>
+    </aside>
+
+    <main>
+      <form id="gate" class="panel" hidden>
+        <label>
+          访问口令
+          <input id="password" type="password" autocomplete="current-password" enterkeyhint="go" required />
+        </label>
+        <button type="submit">进入</button>
+        <p id="gate-error" class="form-error" role="alert"></p>
+      </form>
+
+      <div id="office" hidden>
+        <section class="result panel" aria-live="polite">
+          <p id="task-prompt" class="task-prompt"></p>
+          <p id="result-text" class="result-text">还没有结果。</p>
+        </section>
+
+        <form id="composer" class="composer panel">
+          <div id="settings" class="settings">
+            <button type="button" id="settings-toggle" class="settings-toggle" aria-expanded="false" aria-controls="settings-body">
+              <span id="settings-label">运行设置</span>
+              <span id="settings-summary" class="settings-summary">执行 · 沙箱</span>
+            </button>
+            <div id="settings-body" class="settings-body">
+              <label>
+                工作区
+                <input id="workspace" name="workspace" autocomplete="off" spellcheck="false" />
+              </label>
+              <div class="split">
+                <label>
+                  模式
+                  <select id="mode" name="mode">
+                    <option value="agent">执行</option>
+                    <option value="plan">计划</option>
+                    <option value="ask">提问</option>
+                  </select>
+                </label>
+                <label>
+                  模型
+                  <input id="model" name="model" placeholder="留空用默认" autocomplete="off" spellcheck="false" />
+                </label>
+              </div>
+              <label>
+                沙箱
+                <select id="sandbox" name="sandbox">
+                  <option value="enabled">启用</option>
+                  <option value="disabled">关闭</option>
+                  <option value="default">随 CLI 配置</option>
+                </select>
+              </label>
+              <label class="check">
+                <input id="force" type="checkbox" />
+                允许直接改文件和执行命令
+              </label>
+              <label class="check">
+                <input id="resume" type="checkbox" disabled />
+                继续当前会话
+                <span id="session-id" class="session-id">还没有会话</span>
+              </label>
+            </div>
+          </div>
+          <label class="prompt-label">
+            <span class="field-name">提示</span>
+            <textarea id="prompt" name="prompt" rows="3" placeholder="让 Agent 在这台 Mac 上做什么" required></textarea>
+          </label>
+          <div class="actions">
+            <button id="send" type="submit">发送</button>
+            <button id="stop" type="button" disabled>停止</button>
+          </div>
+          <p id="form-error" class="form-error" role="alert"></p>
+        </form>
+      </div>
+    </main>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
